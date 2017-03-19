@@ -153,27 +153,38 @@ public class BankClient implements BankClientInterface{
          
          
      }
+   String nextRemoteNode = "";
    try{
    Iterator<String> ringkeys = clientMap.keySet().iterator();
    System.out.println("Iterating through keys: ");
    String last = self;
+   
    while(ringkeys.hasNext()){
-     String nextNode = ringkeys.next();
-     clientMap.get(last).setNextNode(nextNode);
-     System.out.println("Set " + last + " --> " + nextNode);
-     last = nextNode;
+     nextRemoteNode = ringkeys.next();
+     if(!last.equals(self)){
+       clientMap.get(last).setNextNode(nextRemoteNode);
+       System.out.println("Set " + last + " --> " + nextRemoteNode);
+     }else{
+       //clientMap.get(last).setNextNode(nextNode);
+       nextNode = nextRemoteNode;
+       System.out.println("Set " + last + " --> " + nextRemoteNode);
+     }
+     last = nextRemoteNode;
    }
-   clientMap.get(nextNode).setNextNode(self);//set last node next to be self
-   System.out.println("Set " + nextNode + " --> " + last);
+   clientMap.get(nextRemoteNode).setNextNode(self);//set last node next to be self
+   System.out.println("Set " + nextRemoteNode + " --> " + last);
+   
+   clientMap.get(nextNode).receiveProposedLeader(self);
    
    }catch(Exception e){
      System.out.println("Self: " + self);
-     System.out.println("Next: " + nextNode);
+     System.out.println("Next: " + nextRemoteNode);
      System.out.println(e);
    }
    
    //when we know all have their next assigned
-   //nextNode.receiveProposedLeader(self);
+
+   
    
    
    
@@ -181,13 +192,13 @@ public class BankClient implements BankClientInterface{
  
  public void receiveProposedLeader(String p) throws RemoteException{
    System.out.println("Received Proposed Leader: " + p);
-   if(Integer.parseInt(proposedLeader) < Integer.parseInt(p)){
+   if(Integer.parseInt(proposedLeader) > Integer.parseInt(p)){
     System.out.println("Proposed Leader is less than argument. Proposed Leader: " + p);
     proposedLeader = p;
     clientMap.get(nextNode).receiveProposedLeader(proposedLeader);
     System.out.println("New Proposed Leader: " + proposedLeader);
-   }else if(proposedLeader.equals(self)){
-     System.out.println("I am the leader!: " + proposedLeader);
+   }else if(p.equals(self)){
+     System.out.println("I am the leader!: " + p);
      selfPotentialLeader = true;
      clientMap.get(nextNode).receiveConfirmedLeader(self);
      System.out.println("Sent confirmed leader message: " + proposedLeader);
@@ -202,6 +213,7 @@ public class BankClient implements BankClientInterface{
    if(p.equals(self)){
      System.out.println("I am the confirmed leader!: " + p);
      selfConfirmedLeader = true;
+     confirmedLeader = p;
      //clientMap.get(nextNode).receiveConfirmedLeader(self);
      System.out.println("Stopped leader election: " + self);
    }else{
