@@ -2,7 +2,7 @@
  * March 17, 2017
  * 
  */
-import java.util.*;
+
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 
@@ -20,6 +20,4 @@ public interface BankClientInterface extends Remote {
  public String receiveMessage(String message) throws RemoteException;
 
  public void setNextNode(String nNode) throws RemoteException;
- 
- public void receiveAllIps(HashMap<String, BankClientInterface> clientMap) throws RemoteException;
 }
