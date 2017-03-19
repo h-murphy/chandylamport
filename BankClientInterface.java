@@ -18,8 +18,10 @@ public interface BankClientInterface extends Remote {
   */
  //public void receiveConfirmedLeader(String confirmedLeader) throws RemoteException;
  public String receiveMessage(String message) throws RemoteException;
+ 
+ public void receiveTransfer(int transferAmount) throws RemoteException;
 
  public void setNextNode(String nNode) throws RemoteException;
  
- public void receiveAllIps(HashMap<String, BankClientInterface> clientMap) throws RemoteException;
+ public void receiveAllIps(HashMap<String, BankClientInterface> clientMap, String sender) throws RemoteException;
 }

@@ -15,22 +15,67 @@ public class BankClient implements BankClientInterface{
   //static LinkedList<String> ring;
   int numClients;
   String nextNode; 
-  
+  int amount;
  public BankClient(String ip){
   self = ip;
   clientMap = new HashMap<String, BankClientInterface>();
+  amount = 200;
   //ring = new LinkedList<String>();
+ }
+ 
+ public void receiveTransfer(int transferAmount) throws RemoteException{
+   amount += transferAmount;
+   System.out.println("Received Transfer of " + transferAmount +". Current Balance is " + amount);
+ }
+ 
+ public void sendTransfer(int transferAmount, String receiver){
+   try{
+   amount -= transferAmount;
+   clientMap.get(receiver).receiveTransfer(transferAmount);
+   System.out.println("Sent Transfer of " + transferAmount +". Current Balance is " + amount);
+   }catch(Exception e){
+     System.out.println(e);
+   }
  }
  
  public void setSelf(String s){
    self = s;
  }
  
- public void receiveAllIps(HashMap<String, BankClientInterface> cMap){
+ public void receiveAllIps(HashMap<String, BankClientInterface> cMap, String sender){
    clientMap = cMap;
    clientMap.remove(self);
    
+   try {
+           
+     Registry registry = LocateRegistry.getRegistry(sender);
+     BankClientInterface stub = (BankClientInterface) registry.lookup("Self");
+     String response = stub.receiveMessage("Connected to: " + self);
+     System.out.println("response: " + response);
+             
+     clientMap.put(sender, stub);
+     numClients++;
+         } catch (Exception e) {
+             System.err.println("Client exception: " + e.toString());
+             e.printStackTrace();
+         }
+   
    printConnections();
+   printMessageToAllConnections();
+ }
+ 
+ public void printMessageToAllConnections(){
+   Iterator<String> keys = clientMap.keySet().iterator();
+   System.out.println("Iterating through keys: ");
+   
+   while(keys.hasNext()){
+        //System.out.println(keys.next());
+     try{
+        clientMap.get(keys.next()).receiveMessage("YOU ARE CONNECTED TO " + self);
+     }catch(Exception e){
+       System.out.println(e);
+     }
+     }
  }
 
  public void printConnections(){
@@ -41,6 +86,7 @@ public class BankClient implements BankClientInterface{
         System.out.println(keys.next());
          
      }
+   
  }
  public void initialize(HashMap<String, BankClientInterface> cMap){
   clientMap = cMap;
@@ -53,8 +99,8 @@ public class BankClient implements BankClientInterface{
 
  public void initializeWithArguments(String[] ips){
    
-   
-   for(int i = 0; i < ips.length; i++){ //does it add itself?
+   //working on its own hashmap, does not add itself
+   for(int i = 1; i < ips.length; i++){ //does it add itself?
          try {
            
              Registry registry = LocateRegistry.getRegistry(ips[i]);
@@ -82,7 +128,7 @@ public class BankClient implements BankClientInterface{
              //BankClientInterface stub = (BankClientInterface) registry.lookup("Self");
              //String response = stub.receiveMessage("Connected to: " + self);
            
-           clientMap.get(keys.next()).receiveAllIps(clientMap);
+           clientMap.get(keys.next()).receiveAllIps(clientMap, self);
              //System.out.println("response: " + response);
              
              //lientMap.put(ips[i], stub);
@@ -113,8 +159,30 @@ public class BankClient implements BankClientInterface{
      System.out.println(e);
    }
    
+   //when we know all have their next assigned
+   //nextNode.receiveProposedLeader(self);
+   
+   
+   
  }
+ 
+// public void receiveProposedLeader(String p){
+//   System.out.println("Received Proposed Leader: " + p);
+//   if(proposedLeader < p){
+//    System.out.println("Proposed Leader: " + p);
+//    proposedLeader = p;
+//    clientMap.get(nextNode).receiveProposedLeader(proposedLeader);
+//    
+//   }else if(proposedLeader.equals(self)){
+//     selfPotentialLeader = true;
+//     clientMap.get(nextNode).receiveConfirmedLeader(self);
+//   clientMap.get(nextNode).receiveProposedLeader(proposedLeader);
+//   
+//   }}
 
+// public void setProposedLeader(String s){
+//   proposedLeader = s;
+// }
  public String receiveMessage(String message){
      System.out.println(message);
      return "confirm";
@@ -137,6 +205,7 @@ public class BankClient implements BankClientInterface{
       
      
         obj.setSelf(args[0]);
+        //obj.setProposedLeader(args[0]);
   
   if(args[1] != null){
   //String host = (args.length < 1) ? null : args[0];
@@ -150,6 +219,8 @@ public class BankClient implements BankClientInterface{
         System.err.println("Server exception: " + e.toString());
         e.printStackTrace();
      }
+ 
+ //ping leader to make sure everythng has been done before starting transfers
 
 }
 }
