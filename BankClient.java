@@ -172,13 +172,13 @@ public class BankClient implements BankClientInterface{
      last = nextRemoteNode;
    }
    clientMap.get(nextRemoteNode).setNextNode(self);//set last node next to be self
-   System.out.println("Set " + nextRemoteNode + " --> " + last);
+   System.out.println("Set " + nextRemoteNode + " --> " + self);
    
    clientMap.get(nextNode).receiveProposedLeader(self);
    
    }catch(Exception e){
      System.out.println("Self: " + self);
-     System.out.println("Next: " + nextRemoteNode);
+     System.out.println("Next: " + nextNode);//instance var
      System.out.println(e);
    }
    
@@ -192,7 +192,11 @@ public class BankClient implements BankClientInterface{
  
  public void receiveProposedLeader(String p) throws RemoteException{
    System.out.println("Received Proposed Leader: " + p);
-   if(Integer.parseInt(proposedLeader) > Integer.parseInt(p)){
+   double proposedLeaderDigits = Double.parseDouble(proposedLeader.replaceAll("[^\\d]", ""));
+   double pDigits = Double.parseDouble(p.replaceAll("[^\\d]", ""));
+
+   
+   if(proposedLeaderDigits > pDigits){
     System.out.println("Proposed Leader is less than argument. Proposed Leader: " + p);
     proposedLeader = p;
     clientMap.get(nextNode).receiveProposedLeader(proposedLeader);
