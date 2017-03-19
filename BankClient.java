@@ -11,16 +11,28 @@ import java.util.*;
 
 public class BankClient implements BankClientInterface{
  String self;
+ BankClientInterface selfStub;
  static HashMap<String, BankClientInterface> clientMap;
   //static LinkedList<String> ring;
   int numClients;
   String nextNode; 
   int amount;
+  String proposedLeader;
+  String confirmedLeader;
+  
+  boolean selfPotentialLeader;
+  boolean selfConfirmedLeader;
+  
  public BankClient(String ip){
   self = ip;
   clientMap = new HashMap<String, BankClientInterface>();
   amount = 200;
+  proposedLeader = self;
   //ring = new LinkedList<String>();
+ }
+ 
+ public void setSelfStub(BankClientInterface selfSt){
+   selfStub = selfSt;
  }
  
  public void receiveTransfer(int transferAmount) throws RemoteException{
@@ -42,23 +54,23 @@ public class BankClient implements BankClientInterface{
    self = s;
  }
  
- public void receiveAllIps(HashMap<String, BankClientInterface> cMap, String sender){
+ public void receiveAllIps(HashMap<String, BankClientInterface> cMap){//, String sender){
    clientMap = cMap;
    clientMap.remove(self);
    
-   try {
-           
-     Registry registry = LocateRegistry.getRegistry(sender);
-     BankClientInterface stub = (BankClientInterface) registry.lookup("Self");
-     String response = stub.receiveMessage("Connected to: " + self);
-     System.out.println("response: " + response);
-             
-     clientMap.put(sender, stub);
-     numClients++;
-         } catch (Exception e) {
-             System.err.println("Client exception: " + e.toString());
-             e.printStackTrace();
-         }
+//   try {
+//           
+//     Registry registry = LocateRegistry.getRegistry(sender);
+//     BankClientInterface stub = (BankClientInterface) registry.lookup("Self");
+//     String response = stub.receiveMessage("Connected to: " + self);
+//     System.out.println("response: " + response);
+//             
+//     clientMap.put(sender, stub);
+//     numClients++;
+//         } catch (Exception e) {
+//             System.err.println("Client exception: " + e.toString());
+//             e.printStackTrace();
+//         }
    
    printConnections();
    printMessageToAllConnections();
@@ -115,8 +127,9 @@ public class BankClient implements BankClientInterface{
              e.printStackTrace();
          }
          
-         
      }
+   HashMap<String, BankClientInterface> toSend = clientMap;
+   toSend.put(self, selfStub);
    
    Iterator<String> keys = clientMap.keySet().iterator();
    System.out.println("Iterating through keys: ");
@@ -128,7 +141,7 @@ public class BankClient implements BankClientInterface{
              //BankClientInterface stub = (BankClientInterface) registry.lookup("Self");
              //String response = stub.receiveMessage("Connected to: " + self);
            
-           clientMap.get(keys.next()).receiveAllIps(clientMap, self);
+           clientMap.get(keys.next()).receiveAllIps(toSend);//, self);
              //System.out.println("response: " + response);
              
              //lientMap.put(ips[i], stub);
@@ -166,23 +179,42 @@ public class BankClient implements BankClientInterface{
    
  }
  
-// public void receiveProposedLeader(String p){
-//   System.out.println("Received Proposed Leader: " + p);
-//   if(proposedLeader < p){
-//    System.out.println("Proposed Leader: " + p);
-//    proposedLeader = p;
-//    clientMap.get(nextNode).receiveProposedLeader(proposedLeader);
-//    
-//   }else if(proposedLeader.equals(self)){
-//     selfPotentialLeader = true;
-//     clientMap.get(nextNode).receiveConfirmedLeader(self);
-//   clientMap.get(nextNode).receiveProposedLeader(proposedLeader);
-//   
-//   }}
+ public void receiveProposedLeader(String p) throws RemoteException{
+   System.out.println("Received Proposed Leader: " + p);
+   if(Integer.parseInt(proposedLeader) < Integer.parseInt(p)){
+    System.out.println("Proposed Leader is less than argument. Proposed Leader: " + p);
+    proposedLeader = p;
+    clientMap.get(nextNode).receiveProposedLeader(proposedLeader);
+    System.out.println("New Proposed Leader: " + proposedLeader);
+   }else if(proposedLeader.equals(self)){
+     System.out.println("I am the leader!: " + proposedLeader);
+     selfPotentialLeader = true;
+     clientMap.get(nextNode).receiveConfirmedLeader(self);
+     System.out.println("Sent confirmed leader message: " + proposedLeader);
+   }else{
+   clientMap.get(nextNode).receiveProposedLeader(proposedLeader);
+   }
+ }
+ 
+ public void receiveConfirmedLeader(String p) throws RemoteException{
+   System.out.println("Received Confirmed Leader: " + p);
+   
+   if(p.equals(self)){
+     System.out.println("I am the confirmed leader!: " + p);
+     selfConfirmedLeader = true;
+     //clientMap.get(nextNode).receiveConfirmedLeader(self);
+     System.out.println("Stopped leader election: " + self);
+   }else{
+     confirmedLeader = p;
+     clientMap.get(nextNode).receiveConfirmedLeader(confirmedLeader);
+   }
+ }
 
-// public void setProposedLeader(String s){
-//   proposedLeader = s;
-// }
+ public void setProposedLeader(String s){
+   proposedLeader = s;
+ }
+ 
+ 
  public String receiveMessage(String message){
      System.out.println(message);
      return "confirm";
@@ -195,16 +227,17 @@ public class BankClient implements BankClientInterface{
   
   try {
         BankClient obj = new BankClient(ip);
-        BankClientInterface selfStub = (BankClientInterface) UnicastRemoteObject.exportObject(obj, 0);
+        BankClientInterface mainStub = (BankClientInterface) UnicastRemoteObject.exportObject(obj, 0);
       
         // Bind the remote object's stub in the registry
         Registry registry = LocateRegistry.getRegistry();
-        registry.bind("Self", selfStub);
+        registry.bind("Self", mainStub);
       
         System.err.println("Server ready");
       
      
         obj.setSelf(args[0]);
+        obj.setSelfStub(mainStub);
         //obj.setProposedLeader(args[0]);
   
   if(args[1] != null){

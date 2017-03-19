@@ -23,5 +23,10 @@ public interface BankClientInterface extends Remote {
 
  public void setNextNode(String nNode) throws RemoteException;
  
- public void receiveAllIps(HashMap<String, BankClientInterface> clientMap, String sender) throws RemoteException;
+ public void receiveAllIps(HashMap<String, BankClientInterface> clientMap) throws RemoteException;//, String sender) throws RemoteException;
+ 
+ public void receiveProposedLeader(String proposedLeader) throws RemoteException;
+ 
+ public void receiveConfirmedLeader(String confirmedLeader) throws RemoteException;
+
 }
