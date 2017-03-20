@@ -8,6 +8,20 @@ import java.rmi.RemoteException;
 
 public interface BankClientInterface extends Remote {
   
+  /*receiveMarker(String sender)
+   * 
+   * If this is the first marker received by a process, save state locally. Send out Markers to everyone else. Mark channel from sender as empty. Also start recording on all other channels.
+   * If this is not the first time, stop recording, save state of channel, mark channel from sender to itself as empty. 
+   */ 
+  public void receiveMarker(String sender) throws RemoteException;
+  
+  /* getSavedState(String sender, int amount)
+   * 
+   * Once all channels are closed, the leaader will call getSavedState() to retrieve the states of the other processes. 
+   */ 
+  public String getSavedState(String sender, int amount) throws RemoteException;
+  
+  
   /* receiveTransfer(int transferAmount) 
    * 
    * Called from another computer, receives a transfer, updates amount of money in account, and reports the transfer
