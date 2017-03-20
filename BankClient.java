@@ -130,10 +130,10 @@ public class BankClient implements BankClientInterface{
    */ 
   public void sendTransfer(int transferAmount, String receiver){
     try{
-      
-      clientMap.get(receiver).receiveTransfer(transferAmount); //call receiveTransfer on the stub that is receiving the transfer
       amount -= transferAmount;
       System.out.println("Sent Transfer of " + transferAmount +". Current Balance is " + amount);
+      
+      clientMap.get(receiver).receiveTransfer(transferAmount); //call receiveTransfer on the stub that is receiving the transfer
       
     }catch(Exception e){
       System.out.println("Failed to send transfer of $" + transferAmount + " to " + receiver);
