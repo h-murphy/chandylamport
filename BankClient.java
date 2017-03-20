@@ -33,7 +33,8 @@ public class BankClient implements BankClientInterface{
     amount = 200;
     proposedLeader = self; //at first, every computer thinks it is the proposed leader
   }
-  
+
+
   /////////////// SETTERS //////////////////////////////////
   
   /* setSelfStub(BankClientInterface selfSt)
@@ -73,14 +74,37 @@ public class BankClient implements BankClientInterface{
   
   
   ////////////// TRANSFER METHODS //////////////////////////////
+
+ /* initiateRandomTransfer() 
+   * 
+   * Begins one transfer of a random amount sent to a random process after sleeping a random # of milliseconds
+   */ 
+  public void initiateRandomTransfer() {
+    Random rand = new Random();
+    int r = rand.nextInt(45001) + 5000;
+    int m = rand.nextInt(amount) + 1;
+    int p = rand.nextInt(4);
+    ArrayList<String> clientArray = new ArrayList<String>(clientMap.keySet());
+    try {
+      Thread.sleep(r);
+    } catch (InterruptedException e) {
+      System.out.println("Random transfers interrupted.");
+    }
+    if (amount > 0) {
+      sendTransfer(m, clientArray.get(p));
+    }
+  }
+  
   
   /* receiveTransfer(int transferAmount) 
    * 
    * Called from another computer, receives a transfer, updates amount of money in account, and reports the transfer
+   * Then initiates random transfer to another process
    */ 
   public void receiveTransfer(int transferAmount) throws RemoteException{
     amount += transferAmount;
     System.out.println("Received Transfer of " + transferAmount +". Current Balance is " + amount);
+    initiateRandomTransfer();
   }
   
   /* sendTransfer(int transferAmount, String receiver) 
@@ -251,6 +275,7 @@ public class BankClient implements BankClientInterface{
    * Called by the node that is pointing to this one. 
    * Sets the confirmed leader to whatever was received as an argument
    * If it receives itself as the confirmed leader, stops the leader election process
+   * Initiates random transfer chain once the leader election halts
    * 
    */ 
   public void receiveConfirmedLeader(String p) throws RemoteException{
@@ -263,6 +288,8 @@ public class BankClient implements BankClientInterface{
       confirmedLeader = p;
    
       System.out.println("Stopped leader election: " + self);
+
+      initiateRandomTransfer();
       
     }else{
       confirmedLeader = p;
