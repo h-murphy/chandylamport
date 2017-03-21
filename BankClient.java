@@ -11,6 +11,9 @@ import java.util.*;
 import java.io.*;
 
 public class BankClient implements BankClientInterface{
+
+  //set to true to enable transfers
+  boolean TRANSFER = false;
   
   
   String self; // holds public DNS of the computer this code is running on
@@ -91,6 +94,7 @@ public class BankClient implements BankClientInterface{
    * 
    */ 
   public void takeSnapshot() throws RemoteException{
+    System.out.println("Initiated Snapshot");
     localState = amount;
     
     takingSnapshot = true; 
@@ -104,6 +108,7 @@ public class BankClient implements BankClientInterface{
       String key = keys.next();
       
       try {
+        System.out.println("Sending marker from " + self + " to " + clientMap.get(key));
         clientMap.get(key).receiveMarker(self);
         
       } catch (Exception e) {
@@ -123,12 +128,14 @@ public class BankClient implements BankClientInterface{
    */ 
   public void receiveMarker(String sender) throws RemoteException{
     if(!hasReceivedMarker){ //not received marker before
+      System.out.println("Received first marker");
       hasReceivedMarker = true;
       localState = amount;
       takingSnapshot = true;
       
       recordChannel.remove(sender); //marking the channel as closed
       recordChannel.put(sender, true); //don't record in localState, channel is closed from sender --> this computer 
+      System.out.println("Closed channel from " + sender + " to " + self);
       
       Iterator<String> keys = clientMap.keySet().iterator();
       //System.out.println("Iterating through keys: ");
@@ -138,6 +145,7 @@ public class BankClient implements BankClientInterface{
         String key = keys.next();
         
         try {
+          System.out.println("Sending marker from " + self + " to " + clientMap.get(key));
           clientMap.get(key).receiveMarker(self);
           //recordChannel.put(key, false); //marking all channels as false (aka open) because we have not received markers from them
           
@@ -152,9 +160,11 @@ public class BankClient implements BankClientInterface{
       
       recordChannel.remove(sender); //marking the channel as closed
       recordChannel.put(sender, true); //don't record in localState
+      System.out.println("Closed channel from " + sender + " to " + self);
+
       try{
-      if(allChannelsClosed() && selfConfirmedLeader){ //write results to file
-        
+      if(selfConfirmedLeader && allChannelsClosed()){ //write results to file
+        System.out.println("All channels have been closed: print to file");
         File file = new File("snapshotOutput.txt");
         PrintWriter writeStates = new PrintWriter(file);
         Iterator<String> keys = clientMap.keySet().iterator();
@@ -165,7 +175,6 @@ public class BankClient implements BankClientInterface{
           String key = keys.next();
           
           try {
-            
             int remoteLocalState = clientMap.get(key).getSavedState();
             String state = key + ", $" + remoteLocalState;
             
@@ -179,7 +188,9 @@ public class BankClient implements BankClientInterface{
           }
           
         }
-        
+
+        writeStates.println(self + ", $" + localState);
+        System.out.println("Snapshot printed to file");
         writeStates.close();
       }
       }catch(FileNotFoundException e){
@@ -215,6 +226,17 @@ public class BankClient implements BankClientInterface{
   }
   
   ////////////// TRANSFER METHODS //////////////////////////////
+
+  public void startAllTransfers() {
+    Iterator<String> keys = clientMap.keySet().iterator();
+    System.out.println("Iterating through keys: ");
+    
+    // send empty transfer to each stub to begin transfer cycle
+    while(keys.hasNext()){
+      String key = keys.next();
+        sendTransfer(0,key);
+    }
+  }
 
  /* initiateRandomTransfer() 
    * 
@@ -420,7 +442,7 @@ public class BankClient implements BankClientInterface{
     double pDigits = Double.parseDouble(p.replaceAll("[^\\d]", ""));
     
     
-    if(proposedLeaderDigits > pDigits){ // don't change the leader from local 
+    if(proposedLeaderDigits < pDigits){ // don't change the leader from local 
       System.out.println("Proposed Leader is less than argument. Proposed Leader: " + p);
       proposedLeader = p;
       clientMap.get(nextNode).receiveProposedLeader(proposedLeader);
@@ -456,7 +478,9 @@ public class BankClient implements BankClientInterface{
    
       System.out.println("Stopped leader election: " + self);
 
-      initiateRandomTransfer();
+      if (TRANSFER) {
+        startAllTransfers();
+      }
       
       takeSnapshot();
       
