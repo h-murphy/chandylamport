@@ -127,6 +127,7 @@ public class BankClient implements BankClientInterface{
    * If this is not the first time, stop recording, save state of channel, mark channel from sender to itself as empty. 
    */ 
   public void receiveMarker(String sender) throws RemoteException{
+    //acquire
     if(!hasReceivedMarker){ //not received marker before
       System.out.println("Received first marker");
       hasReceivedMarker = true;
@@ -188,15 +189,22 @@ public class BankClient implements BankClientInterface{
           }
           
         }
+<<<<<<< HEAD
 
         writeStates.println(self + ", $" + localState);
         System.out.println("Snapshot printed to file");
+=======
+        
+        writeStates.println(self+ ", $" + localState);
+        
+>>>>>>> ccc935ac83b943d72b911b254730e6f8f09da495
         writeStates.close();
       }
       }catch(FileNotFoundException e){
         System.err.println("File not found" + e.toString());
       }
     }
+    //release
   }
   
   /* allChannelsClosed()
@@ -204,7 +212,7 @@ public class BankClient implements BankClientInterface{
    * If all channels are closed, returns true 
    */ 
   public boolean allChannelsClosed(){
-    Iterator<String> keys = clientMap.keySet().iterator();
+    Iterator<String> keys = recordChannel.keySet().iterator();
     
     // sends marker to all clients
     while(keys.hasNext()){
@@ -243,6 +251,8 @@ public class BankClient implements BankClientInterface{
    * Begins one transfer of a random amount sent to a random process after sleeping a random # of milliseconds
    */ 
   public void initiateRandomTransfer() {
+    
+    //ifacquired
     Random rand = new Random();
     int r = rand.nextInt(45001) + 5000;
     int m = rand.nextInt(amount) + 1;
@@ -265,6 +275,7 @@ public class BankClient implements BankClientInterface{
    * Then initiates random transfer to another process
    */ 
   public void receiveTransfer(String sender, int transferAmount) throws RemoteException{
+    
     if(takingSnapshot && recordChannel.get(sender) == false){
       localState += transferAmount;
       
