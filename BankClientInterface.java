@@ -19,14 +19,14 @@ public interface BankClientInterface extends Remote {
    * 
    * Once all channels are closed, the leaader will call getSavedState() to retrieve the states of the other processes. 
    */ 
-  public String getSavedState(String sender, int amount) throws RemoteException;
+  public int getSavedState() throws RemoteException;
   
   
   /* receiveTransfer(int transferAmount) 
    * 
    * Called from another computer, receives a transfer, updates amount of money in account, and reports the transfer
    */
-  public void receiveTransfer(int transferAmount) throws RemoteException;
+  public void receiveTransfer(String sender, int transferAmount) throws RemoteException;
   
   /* setNextNode(String nNode) 
    * 
