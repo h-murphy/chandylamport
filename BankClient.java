@@ -189,15 +189,9 @@ public class BankClient implements BankClientInterface{
           }
           
         }
-<<<<<<< HEAD
 
         writeStates.println(self + ", $" + localState);
         System.out.println("Snapshot printed to file");
-=======
-        
-        writeStates.println(self+ ", $" + localState);
-        
->>>>>>> ccc935ac83b943d72b911b254730e6f8f09da495
         writeStates.close();
       }
       }catch(FileNotFoundException e){
