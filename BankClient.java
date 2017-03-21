@@ -122,6 +122,7 @@ public class BankClient implements BankClientInterface{
    * If this is not the first time, stop recording, save state of channel, mark channel from sender to itself as empty. 
    */ 
   public void receiveMarker(String sender) throws RemoteException{
+    //acquire
     if(!hasReceivedMarker){ //not received marker before
       hasReceivedMarker = true;
       localState = amount;
@@ -152,8 +153,9 @@ public class BankClient implements BankClientInterface{
       
       recordChannel.remove(sender); //marking the channel as closed
       recordChannel.put(sender, true); //don't record in localState
+      
       try{
-      if(allChannelsClosed() && selfConfirmedLeader){ //write results to file
+      if(selfConfirmedLeader && allChannelsClosed()){ //write results to file
         
         File file = new File("snapshotOutput.txt");
         PrintWriter writeStates = new PrintWriter(file);
@@ -180,12 +182,15 @@ public class BankClient implements BankClientInterface{
           
         }
         
+        writeStates.println(self+ ", $" + localState);
+        
         writeStates.close();
       }
       }catch(FileNotFoundException e){
         System.err.println("File not found" + e.toString());
       }
     }
+    //release
   }
   
   /* allChannelsClosed()
@@ -193,7 +198,7 @@ public class BankClient implements BankClientInterface{
    * If all channels are closed, returns true 
    */ 
   public boolean allChannelsClosed(){
-    Iterator<String> keys = clientMap.keySet().iterator();
+    Iterator<String> keys = recordChannel.keySet().iterator();
     
     // sends marker to all clients
     while(keys.hasNext()){
@@ -221,6 +226,8 @@ public class BankClient implements BankClientInterface{
    * Begins one transfer of a random amount sent to a random process after sleeping a random # of milliseconds
    */ 
   public void initiateRandomTransfer() {
+    
+    //ifacquired
     Random rand = new Random();
     int r = rand.nextInt(45001) + 5000;
     int m = rand.nextInt(amount) + 1;
@@ -243,6 +250,7 @@ public class BankClient implements BankClientInterface{
    * Then initiates random transfer to another process
    */ 
   public void receiveTransfer(String sender, int transferAmount) throws RemoteException{
+    
     if(takingSnapshot && recordChannel.get(sender) == false){
       localState += transferAmount;
       
