@@ -13,8 +13,11 @@ import java.io.*;
 public class BankClient implements BankClientInterface{
 
   //set to true to enable transfers
-  boolean TRANSFER = false;
-  
+  boolean TRANSFER = true;
+
+
+  Timer time; //timer used to delay transfers 
+  Scanner scan; //scanner used for command line input 
   
   String self; // holds public DNS of the computer this code is running on
   BankClientInterface selfStub; //holds reference to the computer this code is running on
@@ -29,14 +32,15 @@ public class BankClient implements BankClientInterface{
   boolean selfPotentialLeader; //true if this computer is the potential leader
   boolean selfConfirmedLeader; //true if this computer is the confirmed leader
   
-  int localState; //
-  HashMap<String, Boolean> recordChannel;
-  boolean takingSnapshot;
-  boolean hasReceivedMarker;
+  int localState; //holds initial state of process when snapshot is triggered
+  HashMap<String, Boolean> recordChannel; //false = channel is open/record, true = channel is closed/don't record
+  boolean takingSnapshot; //snapshot occurring?
+  boolean hasReceivedMarker; //checks if first marker has been received by given machine
+  HashMap<String, String[]> channels; //holds transfers that have come in to channels since original state recorded
   //HashMap<String, Integer> recordStates;
   
   
-  int amount; //money stored in account
+  int amount; //money stored in account - ie. local balance 
 
   public BankClient(String ip){
     self = ip;
@@ -45,6 +49,25 @@ public class BankClient implements BankClientInterface{
     proposedLeader = self; //at first, every computer thinks it is the proposed leader
     hasReceivedMarker = false;
     takingSnapshot = false;
+    time = new Timer();
+    scan = new Scanner(System.in);
+  }
+
+//class used for timer
+  public class SendTransfer extends TimerTask {
+
+    int m;
+    String i;
+
+    public SendTransfer(int amt, String ip) {
+      m = amt;
+      i = ip;
+    }
+
+    public void run() {
+      sendTransfer(m, i);
+    }
+
   }
 
 
@@ -249,17 +272,17 @@ public class BankClient implements BankClientInterface{
     //ifacquired
     Random rand = new Random();
     int r = rand.nextInt(45001) + 5000;
-    int m = rand.nextInt(amount) + 1;
+    int m;
+    if (amount > 0) {
+      m = rand.nextInt(amount) + 1;
+    } else {
+      System.out.println("No money left in account, transferring zero dollars.");
+      m = 0;
+    }
     int p = rand.nextInt(4);
     ArrayList<String> clientArray = new ArrayList<String>(clientMap.keySet());
-    try {
-      Thread.sleep(r);
-    } catch (InterruptedException e) {
-      System.out.println("Random transfers interrupted.");
-    }
-    if (amount > 0) {
-      sendTransfer(m, clientArray.get(p));
-    }
+    TimerTask send = new SendTransfer(m,clientArray.get(p));
+    time.schedule(send,r);
   }
   
   
@@ -270,6 +293,7 @@ public class BankClient implements BankClientInterface{
    */ 
   public void receiveTransfer(String sender, int transferAmount) throws RemoteException{
     
+    // remove once snapshot code is written
     if(takingSnapshot && recordChannel.get(sender) == false){
       localState += transferAmount;
       
@@ -487,7 +511,9 @@ public class BankClient implements BankClientInterface{
         startAllTransfers();
       }
       
-      takeSnapshot();
+      if (scan.nextLine().equals("snapshot")) {
+        takeSnapshot();
+      }
       
     }else{
       confirmedLeader = p;
