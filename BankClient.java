@@ -36,7 +36,7 @@ public class BankClient implements BankClientInterface{
   HashMap<String, Boolean> recordChannel; //false = channel is open/record, true = channel is closed/don't record
   boolean takingSnapshot; //snapshot occurring?
   boolean hasReceivedMarker; //checks if first marker has been received by given machine
-  HashMap<String, String[]> channels; //holds transfers that have come in to channels since original state recorded
+  HashMap<String, ArrayList<Integer>> channels; //holds transfers that have come in to channels since original state recorded
   //HashMap<String, Integer> recordStates;
   
   
@@ -197,10 +197,10 @@ public class BankClient implements BankClientInterface{
           String key = keys.next();
           
           try {
-            int remoteLocalState = clientMap.get(key).getSavedState();
-            String state = key + ", $" + remoteLocalState;
+            String remoteLocalState = clientMap.get(key).getSavedState();
+            //String state = key + ", $" + remoteLocalState;
             
-            writeStates.println(state);
+            writeStates.println(remoteLocalState);
             
           } catch (Exception e) {
             System.err.println("Failed to send Marker to:  " + key);
@@ -211,7 +211,7 @@ public class BankClient implements BankClientInterface{
           
         }
 
-        writeStates.println(self + ", $" + localState);
+        writeStates.println(getSavedState());
         System.out.println("Snapshot printed to file");
         writeStates.close();
       }
@@ -243,10 +243,30 @@ public class BankClient implements BankClientInterface{
   /* getSavedState()
    * 
    * Once all channels are closed, the leaader will call getSavedState() to retrieve the states of the other processes. 
+    * //IP: $127, transfer of $40 from IP
    */ 
-  public int getSavedState() throws RemoteException{
-    return localState;
+  public String getSavedState() throws RemoteException{
+   String s = self + ": $" + localState + "; ";
+    int finalState = localState;
+ Iterator<String> keys = recordChannel.keySet().iterator();
+    
+    // sends marker to all clients
+    while(keys.hasNext()){
+      String key = keys.next();
+      ArrayList<Integer> temp = channels.get(key);
+
+      s += "\n\t Sender: " + key;
+   for(int i = 0; i < temp.size(); i ++){
+    finalState += temp.get(i);
+    s +=  " " + temp.get(i) + ", ";
+   } 
   }
+
+  s += "\n\t Final State: " + finalState + "\n";
+    return s;
+  }
+
+
   
   ////////////// TRANSFER METHODS //////////////////////////////
 
@@ -286,7 +306,13 @@ public class BankClient implements BankClientInterface{
     
     // remove once snapshot code is written
     if(takingSnapshot && recordChannel.get(sender) == false){
-      localState += transferAmount;
+      //localState += transferAmount;
+
+     
+     ArrayList<Integer> temp = channels.get(sender);
+     temp.add(transferAmount);
+     channels.remove(sender);
+     channels.put(sender, temp);
       
     }
      
@@ -428,7 +454,8 @@ public class BankClient implements BankClientInterface{
     clientMap.remove(self); //removes itself from the complete list of clients
     
     recordChannel = new HashMap<String, Boolean>();
-    
+    channels = new HashMap<String, ArrayList<Integer>>();
+
     Iterator<String> keys = clientMap.keySet().iterator();
     //System.out.println("Iterating through keys: ");
     
@@ -436,14 +463,15 @@ public class BankClient implements BankClientInterface{
     while(keys.hasNext()){
       String key = keys.next();
       
-      try {
+      //try {
         recordChannel.put(key, false); //marking all channels as false (aka open) because we have not received markers from them
+        channels.put(key, new ArrayList<Integer>());
         
-      } catch (Exception e) {
-        System.err.println("Failed to send Marker to:  " + key);
-        System.err.println("Client exception: " + e.toString());
-        e.printStackTrace();
-      }
+      //} catch (Exception e) {
+       // System.err.println("Failed to initialize channel:  " + key);
+       // System.err.println("Client exception: " + e.toString());
+       // e.printStackTrace();
+      //}
     }
     
     
