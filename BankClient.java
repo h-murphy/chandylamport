@@ -12,20 +12,20 @@ import java.io.*;
 
 public class BankClient implements BankClientInterface{
 
-  //set to true to enable transfers
+  //FOR TESTING WITHOUT TRANSFERS: set to true to enable transfers
   boolean TRANSFER = true;
 
 
-  Timer time; //timer used to delay transfers 
-  Scanner scan; //scanner used for command line input 
+  Timer time; //timer used to delay transfers
+  Scanner scan; //scanner used for command line input
   
-  String self; // holds public DNS of the computer this code is running on
-  BankClientInterface selfStub; //holds reference to the computer this code is running on
+  String self; // holds IP/public DNS of the computer this code is running on
+  BankClientInterface selfStub; //holds stub reference from registry to the computer this code is running on
   
   static HashMap<String, BankClientInterface> clientMap; //holds stubs of all the other clients in the network, referenced by their public DNS
   
   int numClients; //number of clients in the network
-  String nextNode; //holds referencde to the next node in the ring topology
+  String nextNode; //holds reference to the next node in the ring topology
   
   String proposedLeader; //public DNS of the proposed leader
   String confirmedLeader; //public DNS of the confirmed leader
@@ -36,11 +36,9 @@ public class BankClient implements BankClientInterface{
   HashMap<String, Boolean> recordChannel; //false = channel is open/record, true = channel is closed/don't record
   boolean takingSnapshot; //snapshot occurring?
   boolean hasReceivedMarker; //checks if first marker has been received by given machine
-  HashMap<String, ArrayList<Integer>> channels; //holds transfers that have come in to channels since original state recorded
-  //HashMap<String, Integer> recordStates;
+  HashMap<String, ArrayList<Integer>> channels; //holds transfers that have come in to channels since original state was recorded  
   
-  
-  int amount; //money stored in account - ie. local balance 
+  int amount; //local balance 
 
   public BankClient(String ip){
     self = ip;
@@ -53,7 +51,12 @@ public class BankClient implements BankClientInterface{
     scan = new Scanner(System.in);
   }
 
-//class used for timer
+  //////////// SUBCLASSES /////////////////////////////////
+
+  /* 
+   * SendTransfer
+   * Extends TimerTask to be called by timer during random transfers
+   */
   public class SendTransfer extends TimerTask {
 
     String i;
@@ -63,10 +66,11 @@ public class BankClient implements BankClientInterface{
     }
 
     public void run() {
-      sendTransfer(i);
+      sendTransfer(i); //calls sendTransfer from current machine to machine with public DNS i
     }
 
   }
+  //////////////////////////////////////////////////////////
 
 
   /////////////// SETTERS //////////////////////////////////
@@ -89,7 +93,7 @@ public class BankClient implements BankClientInterface{
   
   /* setProposedLeader(String s)
    * 
-   * Set the proposedLeader string (called from the main method)
+   * Set the proposedLeader string
    */ 
   public void setProposedLeader(String s){
     proposedLeader = s;
@@ -116,13 +120,12 @@ public class BankClient implements BankClientInterface{
    */ 
   public void takeSnapshot() throws RemoteException{
     System.out.println("Initiated Snapshot");
-    localState = amount;
+    localState = amount; //record state of machine - ie. balance - at time of snapshot
     
     takingSnapshot = true; 
     hasReceivedMarker = true;
     
     Iterator<String> keys = clientMap.keySet().iterator();
-    //System.out.println("Iterating through keys: ");
     
     // sends marker to all clients
     while(keys.hasNext()){
@@ -148,19 +151,17 @@ public class BankClient implements BankClientInterface{
    * If this is not the first time, stop recording, save state of channel, mark channel from sender to itself as empty. 
    */ 
   public void receiveMarker(String sender) throws RemoteException{
-    //acquire
     if(!hasReceivedMarker){ //not received marker before
       System.out.println("Received first marker");
       hasReceivedMarker = true;
       localState = amount;
       takingSnapshot = true;
       
-      recordChannel.remove(sender); //marking the channel as closed
-      recordChannel.put(sender, true); //don't record in localState, channel is closed from sender --> this computer 
+      recordChannel.remove(sender);
+      recordChannel.put(sender, true); //mark channel as closed from sender --> this computer, stop recording on this channel
       System.out.println("Closed channel from " + sender + " to " + self);
       
       Iterator<String> keys = clientMap.keySet().iterator();
-      //System.out.println("Iterating through keys: ");
       
       // sends marker to all clients
       while(keys.hasNext()){
@@ -169,7 +170,6 @@ public class BankClient implements BankClientInterface{
         try {
           System.out.println("Sending marker from " + self + " to " + clientMap.get(key));
           clientMap.get(key).receiveMarker(self);
-          //recordChannel.put(key, false); //marking all channels as false (aka open) because we have not received markers from them
           
         } catch (Exception e) {
           System.err.println("Failed to send Marker to:  " + key);
@@ -180,8 +180,8 @@ public class BankClient implements BankClientInterface{
       
     }else{
 
-      recordChannel.remove(sender); //marking the channel as closed
-      recordChannel.put(sender, true); //don't record in localState
+      recordChannel.remove(sender);
+      recordChannel.put(sender, true); //mark incoming channel as closed, stop recording on it
       System.out.println("Closed channel from " + sender + " to " + self);
 
       try{
@@ -190,9 +190,8 @@ public class BankClient implements BankClientInterface{
         File file = new File("snapshotOutput.txt");
         PrintWriter writeStates = new PrintWriter(file);
         Iterator<String> keys = clientMap.keySet().iterator();
-        //System.out.println("Iterating through keys: ");
         
-        // sends marker to all clients
+        //write local state for each other non-leader machine
         while(keys.hasNext()){
           String key = keys.next();
           
@@ -203,7 +202,7 @@ public class BankClient implements BankClientInterface{
             writeStates.println(remoteLocalState);
             
           } catch (Exception e) {
-            System.err.println("Failed to send Marker to:  " + key);
+            System.err.println("Failed to retrieve state from:  " + key);
             System.err.println("Client exception: " + e.toString());
             System.err.println("File Writning IO Exception Possible");
             e.printStackTrace();
@@ -211,6 +210,7 @@ public class BankClient implements BankClientInterface{
           
         }
 
+        //write state for leader
         writeStates.println(getSavedState());
         System.out.println("Snapshot printed to file");
         writeStates.close();
@@ -219,7 +219,6 @@ public class BankClient implements BankClientInterface{
       System.err.println("File not found" + e.toString());
     }
   }
-    //release
 }
 
   /* allChannelsClosed()
@@ -229,7 +228,7 @@ public class BankClient implements BankClientInterface{
   public boolean allChannelsClosed(){
     Iterator<String> keys = recordChannel.keySet().iterator();
     
-    // sends marker to all clients
+    //checks each channel for any open ones
     while(keys.hasNext()){
       String key = keys.next();
       if(!recordChannel.get(key)){
@@ -243,34 +242,36 @@ public class BankClient implements BankClientInterface{
   /* getSavedState()
    * 
    * Once all channels are closed, the leaader will call getSavedState() to retrieve the states of the other processes. 
-    * //IP: $127, transfer of $40 from IP
+   * //IP_self: $127;
+   * //Sender: IP_other Transfers: $15 $92
    */ 
   public String getSavedState() throws RemoteException{
    String s = self + ": $" + localState + "; ";
    Iterator<String> keys = recordChannel.keySet().iterator();
 
-    // sends marker to all clients
+    // prints transfers recorded during snapshot from each other machine
    while(keys.hasNext()){
     String key = keys.next();
     ArrayList<Integer> temp = channels.get(key);
 
     s += "\n\t Sender: " + key + "\t Transfers: " ;
     for(int i = 0; i < temp.size(); i ++){
-      s += temp.get(i) + "\t";
+      s += "$" + temp.get(i) + "\t";
     } 
   }
   return s;
 }
-
-
+  //////////////////////////////////////////////////////////////
 
   ////////////// TRANSFER METHODS //////////////////////////////
 
-public void startAllTransfers() {
+ /* startAllTransfers() 
+   * 
+   * Begins all transfers by sending random transfer to each other machine
+   */ 
+ public void startAllTransfers() {
   Iterator<String> keys = clientMap.keySet().iterator();
-  System.out.println("Iterating through keys: ");
 
-    // send empty transfer to each stub to begin transfer cycle
   while(keys.hasNext()){
     String key = keys.next();
     sendTransfer(key);
@@ -279,7 +280,7 @@ public void startAllTransfers() {
 
  /* initiateRandomTransfer() 
    * 
-   * Begins one transfer of a random amount sent to a random process after sleeping a random # of milliseconds
+   * Begins one transfer sent to a random process after sleeping a random # of milliseconds
    */ 
  public void initiateRandomTransfer() {
 
@@ -289,7 +290,7 @@ public void startAllTransfers() {
   int p = rand.nextInt(4);
   ArrayList<String> clientArray = new ArrayList<String>(clientMap.keySet());
   TimerTask send = new SendTransfer(clientArray.get(p));
-  time.schedule(send,r/1000);
+  time.schedule(send,r);
 }
 
 
@@ -297,42 +298,40 @@ public void startAllTransfers() {
    * 
    * Called from another computer, receives a transfer, updates amount of money in account, and reports the transfer
    * Then initiates random transfer to another process
+   * If a snapshot is being taken and the transfer is coming from an open channel, record the transfer as part of the snapshot
    */ 
   public void receiveTransfer(String sender, int transferAmount) throws RemoteException{
 
-    // remove once snapshot code is written
+    //if snapshot is on and channel is recording, record transfer
     if(takingSnapshot && recordChannel.get(sender) == false){
-      //localState += transferAmount;
-
-
      ArrayList<Integer> temp = channels.get(sender);
      temp.add(transferAmount);
      channels.remove(sender);
      channels.put(sender, temp);
-
    }
 
-   amount += transferAmount;
+   amount += transferAmount; //update local balance
    System.out.println("Received Transfer of " + transferAmount +". Current Balance is " + amount);
-   initiateRandomTransfer();
+   initiateRandomTransfer(); //start a transfer to another machine
  }
 
 
-  /* sendTransfer(int transferAmount, String receiver) 
+  /* sendTransfer(String receiver) 
    * 
-   * Initiates a transfer of transferAmount to the computer denoted by receiver. Updates current account amount
+   * Initiates a transfer of random transfer amount to the computer denoted by receiver. Updates current account balance.
+   * If there is no money left in the account, it will try to initiate another transfer.
    */ 
   public void sendTransfer(String receiver){
     Random rand = new Random();
     int transferAmount;
-    if (amount > 0) {
+    if (amount > 0) { //check to see if account has money
       transferAmount = rand.nextInt(amount) + 1;
     } else {
       System.out.println("No money left in account, transferring zero dollars.");
       transferAmount = 0;
     }
     try{
-      amount -= transferAmount;
+      amount -= transferAmount; //update local balance
       System.out.println("Sent Transfer of " + transferAmount +". Current Balance is " + amount);
       
       clientMap.get(receiver).receiveTransfer(self, transferAmount); //call receiveTransfer on the stub that is receiving the transfer
@@ -365,7 +364,7 @@ public void startAllTransfers() {
     try {
 
       Registry registry = LocateRegistry.getRegistry(ips[i]);
-      BankClientInterface stub = (BankClientInterface) registry.lookup("Self");
+      BankClientInterface stub = (BankClientInterface) registry.lookup("Self"); //search for stub of target machine in its local registry
 
         String response = stub.receiveMessage("Connected to: " + self); //confirm connection by sending a message
         System.out.println("response: " + response);
@@ -394,7 +393,7 @@ public void startAllTransfers() {
       String key = keys.next();
       
       try {
-        clientMap.get(key).receiveAllIps(toSend);
+        clientMap.get(key).receiveAllIps(toSend); //remotely sends hashMap to all other machines
 
       } catch (Exception e) {
         System.err.println("Failed to send IPs to " + key);
@@ -425,7 +424,7 @@ public void startAllTransfers() {
           
         }
         
-        last = nextRemoteNode; // update the last node
+        last = nextRemoteNode; //update the last node
       }
       
       clientMap.get(nextRemoteNode).setNextNode(self);//set last node next to be self to complete the ring
@@ -435,7 +434,7 @@ public void startAllTransfers() {
       
     }catch(Exception e){
       System.out.println("Self: " + self);
-      System.out.println("Next: " + nextNode);//instance var
+      System.out.println("Next: " + nextNode); //instance var
       System.out.println(e);
     }
 
@@ -443,7 +442,7 @@ public void startAllTransfers() {
   
   /* receiveAllIps(HashMap<String, BankClientInterface> cMap) 
    * 
-   * Called by the initiator to all other clients. Gives a complete HashMap of all the client stubs in the network,including the sender
+   * Called by the initiator to all other clients. Gives a complete HashMap of all the client stubs in the network, including the sender
    */
   public void receiveAllIps(HashMap<String, BankClientInterface> cMap){
     clientMap = cMap; //sets clientMap instance var
@@ -453,28 +452,18 @@ public void startAllTransfers() {
     channels = new HashMap<String, ArrayList<Integer>>();
 
     Iterator<String> keys = clientMap.keySet().iterator();
-    //System.out.println("Iterating through keys: ");
     
     // sends marker to all clients
     while(keys.hasNext()){
       String key = keys.next();
-      
-      //try {
-        recordChannel.put(key, false); //marking all channels as false (aka open) because we have not received markers from them
-        channels.put(key, new ArrayList<Integer>());
-        
-      //} catch (Exception e) {
-       // System.err.println("Failed to initialize channel:  " + key);
-       // System.err.println("Client exception: " + e.toString());
-       // e.printStackTrace();
-      //}
-      }
+      recordChannel.put(key, false); //marking all channels as false (aka open) because we have not received markers from them
+      channels.put(key, new ArrayList<Integer>());
+    }
 
 
     printConnections(); // print connections locally
     printMessageToAllConnections(); //confirm connections by sending a message to all connections
   }
-  
   
   ////////////////////////////////////////////////////////////////////
   
@@ -520,7 +509,7 @@ public void startAllTransfers() {
    * Initiates random transfer chain once the leader election halts
    * 
    */ 
-  public void receiveConfirmedLeader(String p) throws RemoteException{
+  public void receiveConfirmedLeader(String p) throws RemoteException {
     System.out.println("Received Confirmed Leader: " + p);
     
     if(p.equals(self)){ // if this computer is the leader
@@ -531,19 +520,22 @@ public void startAllTransfers() {
 
       System.out.println("Stopped leader election: " + self);
 
+      //transfer unless boolean is disabled for testing
       if (TRANSFER) {
         startAllTransfers();
       }
       
+      //take a snapshot when 'snapshot' entered into leader's terminal via command line
       if (scan.nextLine().equals("snapshot")) {
         takeSnapshot();
       }
       
     }else{
-      confirmedLeader = p;
-      clientMap.get(nextNode).receiveConfirmedLeader(confirmedLeader); 
+      confirmedLeader = p; //set self as confirmed leader
+      clientMap.get(nextNode).receiveConfirmedLeader(confirmedLeader); //inform all other machines that self is the confirmed leader
     }
   }
+
   ///////////////////////////////////////////////////////////////////////////
   
   ////////// CONNECTION CONFIRMATION METHODS////////////////////
@@ -592,8 +584,12 @@ public void startAllTransfers() {
     System.out.println(message);
     return "confirm";
   }
+
   /////////////////////////////////////////////////////////////////////////////
-  
+
+
+  /////////////////// main ////////////////////////////////////////////////////
+
   public static void main(String[] args){
     // ssh -i AmazonKeys/RMI-Tutorial.pem ec2-user@ec2-54-144-209-88.compute-1.amazonaws.com
     // ec2-54-196-27-232.compute-1.amazonaws.com
@@ -609,7 +605,6 @@ public void startAllTransfers() {
       
       System.err.println("Server ready");
       
-      
       obj.setSelf(args[0]);
       obj.setSelfStub(mainStub);
       
@@ -624,7 +619,7 @@ public void startAllTransfers() {
       e.printStackTrace();
     }
     
-    //ping leader to make sure everythng has been done before starting transfers
+    //ping leader to make sure everything has been done before starting transfers
     
   }
 }

@@ -15,14 +15,14 @@ public interface BankClientInterface extends Remote {
    */ 
   public void receiveMarker(String sender) throws RemoteException;
   
-  /* getSavedState(String sender, int amount)
+  /* getSavedState()
    * 
-   * Once all channels are closed, the leaader will call getSavedState() to retrieve the states of the other processes. 
+   * Once all channels are closed, the leaader will call getSavedState() to retrieve the states and transfers of the other processes. 
    */ 
   public String getSavedState() throws RemoteException;
   
   
-  /* receiveTransfer(int transferAmount) 
+  /* receiveTransfer(String sender, int transferAmount) 
    * 
    * Called from another computer, receives a transfer, updates amount of money in account, and reports the transfer
    */
@@ -34,13 +34,13 @@ public interface BankClientInterface extends Remote {
    */
   public void setNextNode(String nNode) throws RemoteException;
   
-  /* receiveAllIps(HashMap<String, BankClientInterface> cMap) 
+  /* receiveAllIps(HashMap<String, BankClientInterface> clientMap) 
    * 
    * Called by the initiator to all other clients. Gives a complete HashMap of all the client stubs in the network,including the sender
    */
-  public void receiveAllIps(HashMap<String, BankClientInterface> clientMap) throws RemoteException;//, String sender) throws RemoteException;
+  public void receiveAllIps(HashMap<String, BankClientInterface> clientMap) throws RemoteException;
   
-  /* receiveProposedLeader(String p)
+  /* receiveProposedLeader(String proposedLeader)
    * 
    * Called by the node that is pointing to this one. D
    * Decides whether to keep the proposed leader before passing it on or keeping the one it had before.
@@ -49,7 +49,7 @@ public interface BankClientInterface extends Remote {
    */ 
   public void receiveProposedLeader(String proposedLeader) throws RemoteException;
   
-  /* receiveConfirmedLeader(String p)
+  /* receiveConfirmedLeader(String confirmedLeader)
    * 
    * Called by the node that is pointing to this one. 
    * Sets the confirmed leader to whatever was received as an argument
