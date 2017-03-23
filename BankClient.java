@@ -179,7 +179,7 @@ public class BankClient implements BankClientInterface{
       }
       
     }else{
-      
+
       recordChannel.remove(sender); //marking the channel as closed
       recordChannel.put(sender, true); //don't record in localState
       System.out.println("Closed channel from " + sender + " to " + self);
@@ -215,13 +215,13 @@ public class BankClient implements BankClientInterface{
         System.out.println("Snapshot printed to file");
         writeStates.close();
       }
-      }catch(FileNotFoundException e){
-        System.err.println("File not found" + e.toString());
-      }
+    }catch(FileNotFoundException e){
+      System.err.println("File not found" + e.toString());
     }
-    //release
   }
-  
+    //release
+}
+
   /* allChannelsClosed()
    * 
    * If all channels are closed, returns true 
@@ -239,7 +239,7 @@ public class BankClient implements BankClientInterface{
     }
     return true;
   }
-    
+
   /* getSavedState()
    * 
    * Once all channels are closed, the leaader will call getSavedState() to retrieve the states of the other processes. 
@@ -247,81 +247,77 @@ public class BankClient implements BankClientInterface{
    */ 
   public String getSavedState() throws RemoteException{
    String s = self + ": $" + localState + "; ";
-    int finalState = localState;
- Iterator<String> keys = recordChannel.keySet().iterator();
-    
+   Iterator<String> keys = recordChannel.keySet().iterator();
+
     // sends marker to all clients
-    while(keys.hasNext()){
-      String key = keys.next();
-      ArrayList<Integer> temp = channels.get(key);
+   while(keys.hasNext()){
+    String key = keys.next();
+    ArrayList<Integer> temp = channels.get(key);
 
-      s += "\n\t Sender: " + key;
-   for(int i = 0; i < temp.size(); i ++){
-    finalState += temp.get(i);
-    s +=  " " + temp.get(i) + ", ";
-   } 
+    s += "\n\t Sender: " + key + "\t Transfers: " ;
+    for(int i = 0; i < temp.size(); i ++){
+      s += temp.get(i) + "\t";
+    } 
   }
-
-  s += "\n\t Final State: " + finalState + "\n";
-    return s;
-  }
+  return s;
+}
 
 
-  
+
   ////////////// TRANSFER METHODS //////////////////////////////
 
-  public void startAllTransfers() {
-    Iterator<String> keys = clientMap.keySet().iterator();
-    System.out.println("Iterating through keys: ");
-    
+public void startAllTransfers() {
+  Iterator<String> keys = clientMap.keySet().iterator();
+  System.out.println("Iterating through keys: ");
+
     // send empty transfer to each stub to begin transfer cycle
-    while(keys.hasNext()){
-      String key = keys.next();
-        sendTransfer(key);
-    }
+  while(keys.hasNext()){
+    String key = keys.next();
+    sendTransfer(key);
   }
+}
 
  /* initiateRandomTransfer() 
    * 
    * Begins one transfer of a random amount sent to a random process after sleeping a random # of milliseconds
    */ 
-  public void initiateRandomTransfer() {
-    
+ public void initiateRandomTransfer() {
+
     //ifacquired
-    Random rand = new Random();
-    int r = rand.nextInt(45001) + 5000;
-    int p = rand.nextInt(4);
-    ArrayList<String> clientArray = new ArrayList<String>(clientMap.keySet());
-    TimerTask send = new SendTransfer(clientArray.get(p));
-    time.schedule(send,r);
-  }
-  
-  
+  Random rand = new Random();
+  int r = rand.nextInt(45001) + 5000;
+  int p = rand.nextInt(4);
+  ArrayList<String> clientArray = new ArrayList<String>(clientMap.keySet());
+  TimerTask send = new SendTransfer(clientArray.get(p));
+  time.schedule(send,r/1000);
+}
+
+
   /* receiveTransfer(String sender, int transferAmount) 
    * 
    * Called from another computer, receives a transfer, updates amount of money in account, and reports the transfer
    * Then initiates random transfer to another process
    */ 
   public void receiveTransfer(String sender, int transferAmount) throws RemoteException{
-    
+
     // remove once snapshot code is written
     if(takingSnapshot && recordChannel.get(sender) == false){
       //localState += transferAmount;
 
-     
+
      ArrayList<Integer> temp = channels.get(sender);
      temp.add(transferAmount);
      channels.remove(sender);
      channels.put(sender, temp);
-      
-    }
-     
-      amount += transferAmount;
-      System.out.println("Received Transfer of " + transferAmount +". Current Balance is " + amount);
-      initiateRandomTransfer();
-    }
-  
-  
+
+   }
+
+   amount += transferAmount;
+   System.out.println("Received Transfer of " + transferAmount +". Current Balance is " + amount);
+   initiateRandomTransfer();
+ }
+
+
   /* sendTransfer(int transferAmount, String receiver) 
    * 
    * Initiates a transfer of transferAmount to the computer denoted by receiver. Updates current account amount
@@ -363,14 +359,14 @@ public class BankClient implements BankClientInterface{
    * NOTE: this method is only called by the INITIATOR, the computer that receives all the ips by command line argument
    */
   public void initializeWithArguments(String[] ips){
-    
+
     // creates stubs to all received clients and places them in a hashmap
     for(int i = 1; i < ips.length; i++){  //starts at 1 so it doesn't add itself to the client map
-      try {
-        
-        Registry registry = LocateRegistry.getRegistry(ips[i]);
-        BankClientInterface stub = (BankClientInterface) registry.lookup("Self");
-        
+    try {
+
+      Registry registry = LocateRegistry.getRegistry(ips[i]);
+      BankClientInterface stub = (BankClientInterface) registry.lookup("Self");
+
         String response = stub.receiveMessage("Connected to: " + self); //confirm connection by sending a message
         System.out.println("response: " + response);
         
@@ -411,7 +407,7 @@ public class BankClient implements BankClientInterface{
     // create the ring topology for leader election
     String nextRemoteNode = "";
     try{
-      
+
       Iterator<String> ringkeys = clientMap.keySet().iterator();
       System.out.println("Iterating through keys: ");
       String last = self;
@@ -442,7 +438,7 @@ public class BankClient implements BankClientInterface{
       System.out.println("Next: " + nextNode);//instance var
       System.out.println(e);
     }
-      
+
   }
   
   /* receiveAllIps(HashMap<String, BankClientInterface> cMap) 
@@ -472,9 +468,9 @@ public class BankClient implements BankClientInterface{
        // System.err.println("Client exception: " + e.toString());
        // e.printStackTrace();
       //}
-    }
-    
-    
+      }
+
+
     printConnections(); // print connections locally
     printMessageToAllConnections(); //confirm connections by sending a message to all connections
   }
@@ -493,18 +489,18 @@ public class BankClient implements BankClientInterface{
    * 
    */ 
   public void receiveProposedLeader(String p) throws RemoteException{
-    
+
     System.out.println("Received Proposed Leader: " + p);
     double proposedLeaderDigits = Double.parseDouble(proposedLeader.replaceAll("[^\\d]", ""));
     double pDigits = Double.parseDouble(p.replaceAll("[^\\d]", ""));
     
     
     if(proposedLeaderDigits < pDigits){ // don't change the leader from local 
-      System.out.println("Proposed Leader is less than argument. Proposed Leader: " + p);
-      proposedLeader = p;
-      clientMap.get(nextNode).receiveProposedLeader(proposedLeader);
-      System.out.println("New Proposed Leader: " + proposedLeader);
-      
+    System.out.println("Proposed Leader is less than argument. Proposed Leader: " + p);
+    proposedLeader = p;
+    clientMap.get(nextNode).receiveProposedLeader(proposedLeader);
+    System.out.println("New Proposed Leader: " + proposedLeader);
+
     }else if(p.equals(self)){ //if this computer is the leader
       System.out.println("I am the leader!: " + p);
       selfPotentialLeader = true;
@@ -528,11 +524,11 @@ public class BankClient implements BankClientInterface{
     System.out.println("Received Confirmed Leader: " + p);
     
     if(p.equals(self)){ // if this computer is the leader
-      
+
       System.out.println("I am the confirmed leader!: " + p);
       selfConfirmedLeader = true;
       confirmedLeader = p;
-   
+
       System.out.println("Stopped leader election: " + self);
 
       if (TRANSFER) {
@@ -562,7 +558,7 @@ public class BankClient implements BankClientInterface{
     
     while(keys.hasNext()){
       try{
-        
+
         clientMap.get(keys.next()).receiveMessage("YOU ARE CONNECTED TO " + self); //print "YOU ARE CONNECTED TO <this computer> on every connection's console
         
       }catch(Exception e){
@@ -581,7 +577,7 @@ public class BankClient implements BankClientInterface{
     System.out.println("Iterating through keys: ");
     
     while(keys.hasNext()){
-      
+
       System.out.println(keys.next());
       
     }
@@ -601,7 +597,7 @@ public class BankClient implements BankClientInterface{
   public static void main(String[] args){
     // ssh -i AmazonKeys/RMI-Tutorial.pem ec2-user@ec2-54-144-209-88.compute-1.amazonaws.com
     // ec2-54-196-27-232.compute-1.amazonaws.com
-    
+
     String ip = args[0];
     try {
       BankClient obj = new BankClient(ip);
