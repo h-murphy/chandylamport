@@ -56,16 +56,14 @@ public class BankClient implements BankClientInterface{
 //class used for timer
   public class SendTransfer extends TimerTask {
 
-    int m;
     String i;
 
-    public SendTransfer(int amt, String ip) {
-      m = amt;
+    public SendTransfer(String ip) {
       i = ip;
     }
 
     public void run() {
-      sendTransfer(m, i);
+      sendTransfer(i);
     }
 
   }
@@ -259,7 +257,7 @@ public class BankClient implements BankClientInterface{
     // send empty transfer to each stub to begin transfer cycle
     while(keys.hasNext()){
       String key = keys.next();
-        sendTransfer(0,key);
+        sendTransfer(key);
     }
   }
 
@@ -272,16 +270,9 @@ public class BankClient implements BankClientInterface{
     //ifacquired
     Random rand = new Random();
     int r = rand.nextInt(45001) + 5000;
-    int m;
-    if (amount > 0) {
-      m = rand.nextInt(amount) + 1;
-    } else {
-      System.out.println("No money left in account, transferring zero dollars.");
-      m = 0;
-    }
     int p = rand.nextInt(4);
     ArrayList<String> clientArray = new ArrayList<String>(clientMap.keySet());
-    TimerTask send = new SendTransfer(m,clientArray.get(p));
+    TimerTask send = new SendTransfer(clientArray.get(p));
     time.schedule(send,r);
   }
   
@@ -309,7 +300,15 @@ public class BankClient implements BankClientInterface{
    * 
    * Initiates a transfer of transferAmount to the computer denoted by receiver. Updates current account amount
    */ 
-  public void sendTransfer(int transferAmount, String receiver){
+  public void sendTransfer(String receiver){
+    Random rand = new Random();
+    int transferAmount;
+    if (amount > 0) {
+      transferAmount = rand.nextInt(amount) + 1;
+    } else {
+      System.out.println("No money left in account, transferring zero dollars.");
+      transferAmount = 0;
+    }
     try{
       amount -= transferAmount;
       System.out.println("Sent Transfer of " + transferAmount +". Current Balance is " + amount);
@@ -319,6 +318,7 @@ public class BankClient implements BankClientInterface{
     }catch(Exception e){
       System.out.println("Failed to send transfer of $" + transferAmount + " to " + receiver);
       System.out.println(e);
+      initiateRandomTransfer();
     }
   }
   
